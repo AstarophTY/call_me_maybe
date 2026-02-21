@@ -1,0 +1,12 @@
+[project]
+name = "call-me-maybe"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=2.2.6",
+    "pydantic>=2.12.5",
+    "torch>=2.10.0",
+    "transformers>=5.2.0",
+]

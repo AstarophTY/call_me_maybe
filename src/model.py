@@ -1,15 +1,27 @@
-from llm_sdk import Small_LLM_Model
+from src.llm_sdk import Small_LLM_Model
 import numpy as np
-from parsing import Parsing
+from src.parsing import Parsing
+import json
 
 
 class Model:
     def __init__(self, parsing: Parsing):
         self.model: Small_LLM_Model = Small_LLM_Model()
         self.parsing: Parsing = parsing
-        # vocab_path = self.model.get_path_to_vocabulary_json()
 
+        vocab_path = self.model.get_path_to_vocabulary_json()
 
+        with open(vocab_path, "r") as f:
+            self.vocab = json.load(f)
+
+        self.optimize_model()
+        self.resolve_prompts()
+
+    def change_logits(self) -> None:
+        pass
+
+    def optimize_model(self) -> None:
+        print(self.vocab.get("{"))
 
     def resolve_prompts(self) -> None:
         for prompt in self.parsing.prompts:

@@ -1,6 +1,6 @@
 from pydantic import ValidationError
 from argparse import ArgumentParser
-from validator import ParsingValidation
+from src.validator import ParsingValidation
 
 
 class Parsing:

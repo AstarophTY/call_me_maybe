@@ -3,7 +3,7 @@ TEMP_FILE := *.egg-info build dist .pytest_cache .mypy_cache
 all: run
 
 run: install
-	un run python -m src
+	uv run python -m src
 
 install:
 	uv sync

@@ -1,5 +1,5 @@
-from model import Model
-from parsing import Parsing
+from src.model import Model
+from src.parsing import Parsing
 
 
 def main() -> None:

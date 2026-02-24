@@ -4,7 +4,7 @@ from src.parsing import Parsing
 
 def main() -> None:
     parsing = Parsing()
-    Model(parsing)
+    model = Model(parsing)
 
 
 if __name__ == "__main__":

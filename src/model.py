@@ -37,16 +37,16 @@ class Model:
         input_ids = list(self.model._encode(prompt)[0])
 
         logits = self.model.get_logits_from_input_ids(input_ids)
-        restricted_logits = np.full_like(logits, -np.inf)
         function = ""
         for wl_word in self.whitelist:
             for ids in wl_word:
                 for id in ids:
                     idx = int(id)
+                    restricted_logits = np.full_like(logits, -np.inf)
                     restricted_logits[idx] = logits[idx]
                     ids_response = np.argmax(restricted_logits)
-                    input_ids.append(ids_response)
                     word = self.model._decode([int(ids_response)])
-                    # restricted_logits[idx] -= 5.0
+                    restricted_logits[idx] -= 5.0
+                    input_ids.append(ids_response)
                     function += word
         print(function)

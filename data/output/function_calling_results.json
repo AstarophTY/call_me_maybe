@@ -5,8 +5,33 @@
         "parameters": {}
     },
     {
+        "prompt": "prompt=\"Reverse the string 'hello'\"",
+        "name": "fn_greet",
+        "parameters": {}
+    },
+    {
+        "prompt": "prompt=\"Reverse the string 'world'\"",
+        "name": "fn_greet",
+        "parameters": {}
+    },
+    {
+        "prompt": "prompt=\"Substitute the digits in the string 'Hello 34 I'm 233 years old' with 'NUMBERS'\"",
+        "name": "fn_substitute_string_with_regex",
+        "parameters": {}
+    },
+    {
+        "prompt": "prompt=\"Replace all vowels in 'Programming is fun' with asterisks\"",
+        "name": "fn_substitute_string_with_regex",
+        "parameters": {}
+    },
+    {
+        "prompt": "prompt=\"Substitute the word 'cat' with 'dog' in 'The cat sat on the mat with another cat'\"",
+        "name": "fn_substitute_string_with_regex",
+        "parameters": {}
+    },
+    {
         "prompt": "prompt='What is the sum of 2 and 3?'",
-        "name": "fn_get_square_root",
+        "name": "fn_greet",
         "parameters": {}
     },
     {

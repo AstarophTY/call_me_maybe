@@ -15,10 +15,12 @@ class Model:
 
         self.whitelist = []
         for function in parsing.functions:
-            token_ids = self.model._encode(function.fn_name)
+            token_ids = self.model._encode(function.fn_name)[0].tolist()
             self.whitelist.append(token_ids)
 
-        self.resolve_prompt(parsing.prompts[0])
+        for prompt in self.parsing.prompts:
+            function = self.resolve_prompt(prompt)
+            print(function, prompt)
 
     def change_logits(self) -> None:
         pass
@@ -33,20 +35,40 @@ class Model:
             logits[token_id] = np.inf
         return logits
 
-    def resolve_prompt(self, prompt: str) -> None:
-        input_ids = list(self.model._encode(prompt)[0])
+    def resolve_prompt(self, prompt: str) -> str:
+        formatted_prompt = (
+            f"Task: Select the best function name for the user request.\n"
+            f"Example: 'Add 2 and 5' -> fn_add_numbers\n"
+            f"Request: '{prompt}' ->"
+        )
 
-        logits = self.model.get_logits_from_input_ids(input_ids)
-        function = ""
-        for wl_word in self.whitelist:
-            for ids in wl_word:
-                for id in ids:
-                    idx = int(id)
-                    restricted_logits = np.full_like(logits, -np.inf)
-                    restricted_logits[idx] = logits[idx]
-                    ids_response = np.argmax(restricted_logits)
-                    word = self.model._decode([int(ids_response)])
-                    restricted_logits[idx] -= 5.0
-                    input_ids.append(ids_response)
-                    function += word
-        print(function)
+        choices = [fn.fn_name for fn in self.parsing.functions]
+        best_function = choices[0]
+        max_score = -float('inf')
+
+        for fn_name in choices:
+            input_ids = self.model._tokenizer.encode(
+                formatted_prompt,
+                add_special_tokens=False
+            )
+
+            target_ids = self.model._tokenizer.encode(
+                " " + fn_name,
+                add_special_tokens=False
+            )
+
+            total_logit = 0
+            current_ids = list(input_ids)
+
+            for t_id in target_ids:
+                logits = self.model.get_logits_from_input_ids(current_ids)
+                total_logit += logits[t_id]
+                current_ids.append(t_id)
+
+            avg_score = total_logit / len(target_ids)
+
+            if avg_score > max_score:
+                max_score = avg_score
+                best_function = fn_name
+
+        return best_function

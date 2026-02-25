@@ -20,7 +20,7 @@ class ParsingValidation(BaseModel):
         "data/input/functions_definition.json"
     )
     input: FilePath = Path("data/input/function_calling_tests.json")
-    output: str = "data/output/function_calls.json"
+    output: str = "data/output/function_calling_results.json"
     functions: List[FunctionValidation] = []
     prompts: List[PromptValidation] = []
 

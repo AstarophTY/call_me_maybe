@@ -1,74 +1,81 @@
-from src.llm_sdk import Small_LLM_Model
-import numpy as np
-from src.parsing import Parsing
 import json
+from typing import List, Dict, Any
+import numpy as np
+from pydantic import BaseModel
+from src.llm_sdk import Small_LLM_Model
+from src.parsing import Parsing
+
+
+class FunctionCallingResult(BaseModel):
+    prompt: str
+    name: str
+    parameters: Dict[str, Any]
 
 
 class Model:
     def __init__(self, parsing: Parsing):
-        self.model: Small_LLM_Model = Small_LLM_Model()
-        self.parsing: Parsing = parsing
-
+        self.model = Small_LLM_Model()
+        self.parsing = parsing
         vocab_path = self.model.get_path_to_vocabulary_json()
-        with open(vocab_path, "r") as f:
-            self.vocab = json.load(f)
+        with open(vocab_path, "r", encoding="utf-8") as f:
+            self.vocab: Dict[str, int] = json.load(f)
 
-        self.whitelist = []
-        for function in parsing.functions:
-            token_ids = self.model._encode(function.fn_name)[0].tolist()
-            self.whitelist.append(token_ids)
+    def _safe_encode(self, text: str) -> List[int]:
+        res: Any = self.model._encode(text)
+        # Gestion récursive pour aplatir n'importe quelle structure (Tensor/List)
+        if hasattr(res, "tolist"):
+            res = res.tolist()
 
-        for prompt in self.parsing.prompts:
-            function = self.resolve_prompt(prompt)
-            print(function, prompt)
+        def flatten(items: Any) -> List[int]:
+            flat_list = []
+            if isinstance(items, list):
+                for item in items:
+                    flat_list.extend(flatten(item))
+            else:
+                flat_list.append(int(items))
+            return flat_list
 
-    def change_logits(self) -> None:
-        pass
+        return flatten(res)
 
-    def optimize_prompt(
-        self,
-        logits: dict[str, float],
-        char: str
-    ) -> dict[str, float]:
-        token_id = self.vocab.get(char)
-        if token_id:
-            logits[token_id] = np.inf
-        return logits
+    def encode_string_strictly(self, ids: List[int], text: str) -> None:
+        for char in text:
+            tokens = self._safe_encode(char)
+            if tokens:
+                ids.append(tokens[0])
 
-    def resolve_prompt(self, prompt: str) -> str:
-        formatted_prompt = (
-            f"Task: Select the best function name for the user request.\n"
-            f"Example: 'Add 2 and 5' -> fn_add_numbers\n"
-            f"Request: '{prompt}' ->"
-        )
+    def resolve_prompt(self, user_prompt: str) -> Dict[str, Any]:
+        ids = self._safe_encode(f"Request: {user_prompt}\nJSON:")
+        self.encode_string_strictly(ids, '{"prompt": "')
+        ids.extend(self._safe_encode(user_prompt))
+        self.encode_string_strictly(ids, '", "name": "')
 
-        choices = [fn.fn_name for fn in self.parsing.functions]
-        best_function = choices[0]
-        max_score = -float('inf')
+        fn_names = [fn.fn_name for fn in self.parsing.functions]
+        selected_fn = self._decode_limited_choice(ids, fn_names)
 
-        for fn_name in choices:
-            input_ids = self.model._tokenizer.encode(
-                formatted_prompt,
-                add_special_tokens=False
-            )
+        self.encode_string_strictly(ids, selected_fn)
+        self.encode_string_strictly(ids, '", "parameters": {')
+        self.encode_string_strictly(ids, "}}")
 
-            target_ids = self.model._tokenizer.encode(
-                " " + fn_name,
-                add_special_tokens=False
-            )
+        full_text = str(self.model._decode(ids))
+        json_str = full_text.split("JSON:")[-1]
+        data = json.loads(json_str)
+        return FunctionCallingResult(**data).model_dump()
 
-            total_logit = 0
-            current_ids = list(input_ids)
-
-            for t_id in target_ids:
-                logits = self.model.get_logits_from_input_ids(current_ids)
-                total_logit += logits[t_id]
-                current_ids.append(t_id)
-
-            avg_score = total_logit / len(target_ids)
-
-            if avg_score > max_score:
-                max_score = avg_score
-                best_function = fn_name
-
-        return best_function
+    def _decode_limited_choice(self, current_ids: List[int],
+                               choices: List[str]) -> str:
+        scores: List[float] = []
+        for choice in choices:
+            temp_ids = list(current_ids)
+            target_tokens = self._safe_encode(choice)
+            total_logit = 0.0
+            for t_id in target_tokens:
+                logits = self.model.get_logits_from_input_ids(temp_ids)
+                # Correction ici : accès sécurisé à la valeur du logit
+                val = logits[t_id]
+                if hasattr(val, "item"):
+                    total_logit += float(val.item())
+                else:
+                    total_logit += float(val)
+                temp_ids.append(t_id)
+            scores.append(total_logit / len(target_tokens))
+        return choices[int(np.argmax(scores))]

@@ -1,6 +1,7 @@
 from pydantic import ValidationError
 from argparse import ArgumentParser
 from src.validator import ParsingValidation
+from sys import stderr
 
 
 class Parsing:
@@ -17,7 +18,7 @@ class Parsing:
         try:
             values = ParsingValidation(**clean_args)
         except ValidationError as e:
-            print(f"Error: \n{e}")
+            print(f"Error: \n{e}", file=stderr)
 
         self.prompts = [str(prompt) for prompt in values.prompts]
         self.functions = list(values.functions)

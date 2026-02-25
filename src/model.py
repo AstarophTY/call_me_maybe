@@ -45,7 +45,6 @@ class Model:
     def resolve_prompt(self, user_prompt: str) -> Dict[str, Any]:
         ids = self._safe_encode(f"Request: {user_prompt}\nJSON:")
         self.encode_string_strictly(ids, '{"prompt": "')
-        # Escape JSON special characters in user_prompt
         escaped_prompt = user_prompt.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n').replace('\r', '\\r').replace('\t', '\\t')
         self.encode_string_strictly(ids, escaped_prompt)
         self.encode_string_strictly(ids, '", "name": "')

@@ -20,6 +20,6 @@ class Parsing:
         except ValidationError as e:
             print(f"Error: \n{e}", file=stderr)
 
-        self.prompts = [str(prompt) for prompt in values.prompts]
+        self.prompts = [prompt.prompt for prompt in values.prompts]
         self.functions = list(values.functions)
         self.output = str(values.output)

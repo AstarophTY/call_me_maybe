@@ -1,14 +1,22 @@
 import json
 from pathlib import Path
 from typing import List
-from pydantic import BaseModel, FilePath, model_validator
+from pydantic import BaseModel, FilePath, model_validator, ValidationError
+from enum import Enum
+
+
+class Types(str, Enum):
+    float = "float"
+    int = "int"
+    str = "str"
+    bool = "bool"
 
 
 class FunctionValidation(BaseModel):
     fn_name: str
     args_names: List[str]
-    args_types: dict[str, str]
-    return_type: str
+    args_types: dict[str, Types]
+    return_type: Types
 
 
 class PromptValidation(BaseModel):

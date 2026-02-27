@@ -5,7 +5,11 @@ from sys import stderr
 
 
 def main() -> None:
-    parsing = Parsing()
+    try:
+        parsing = Parsing()
+    except Exception:
+        return
+
     engine = Model(parsing)
 
     results = []
@@ -16,14 +20,15 @@ def main() -> None:
             result = engine.resolve_prompt(prompt_text)
             results.append(result)
         except Exception as e:
-            print(f"Error on prompt: {e}")
+            print(f"Error on prompt: {e}", file=stderr)
 
     try:
         with open(parsing.output, "w") as f:
             json.dump(results, f, indent=4)
     except Exception as e:
         print(f"Error: \n{e}", file=stderr)
-    print(f"Done! Results saved to {parsing.output}")
+    else:
+        print(f"Done! Results saved to {parsing.output}")
 
 
 if __name__ == "__main__":

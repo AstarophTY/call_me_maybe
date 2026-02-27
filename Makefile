@@ -1,22 +1,28 @@
 TEMP_FILE := *.egg-info build dist .pytest_cache .mypy_cache
+MYPY_FLAG := --warn-return-any --warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs --check-untyped-defs
+SRC_DIR := src
+UV := uv
 
 all: run
 
 run: install
-	uv run python -m src
+	$(UV) run python -m $(SRC_DIR)
 
 install:
-	uv sync
+	$(UV) sync
 
 clean:
 	@rm -rf $(TEMP_FILE)
 	@find . -type d -name "__pycache__" -exec rm -rf {} +
 	@find . -type f -name "*.py[co]" -delete
 
+debug:
+	$(UV) python -m pdb
+
 lint:
-	flake8 src
-	mypy src/ --warn-return-any --warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs --check-untyped-defs
+	$(UV) run flake8 $(SRC_DIR)/*.py
+	$(UV) run mypy $(SRC_DIR)/*.py $(MYPY_FLAG)
 
 lint-strict:
-	flake8 src
-	mypy src --strict
+	$(UV) run flake8 $(SRC_DIR)/*.py
+	$(UV) run mypy $(SRC_DIR) --strict

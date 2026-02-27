@@ -5,7 +5,7 @@ from sys import stderr
 
 
 class Parsing:
-    def __init__(self):
+    def __init__(self) -> None:
         parser = ArgumentParser(description="Call Me Maybe")
 
         parser.add_argument("--functions_definition", type=str, help="")

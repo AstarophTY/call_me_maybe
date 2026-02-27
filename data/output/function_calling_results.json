@@ -2,9 +2,7 @@
     {
         "prompt": "What is the square root of 16?",
         "name": "fn_get_square_root",
-        "parameters": {
-            "a": 16
-        }
+        "parameters": {}
     },
     {
         "prompt": "Reverse the string 'hello'",
@@ -50,48 +48,32 @@
     {
         "prompt": "What is the sum of 2 and 3?",
         "name": "fn_add_numbers",
-        "parameters": {
-            "a": 2,
-            "b": 3
-        }
+        "parameters": {}
     },
     {
         "prompt": "What is the sum of 265 and 345?",
         "name": "fn_add_numbers",
-        "parameters": {
-            "a": 265,
-            "b": 345
-        }
+        "parameters": {}
     },
     {
         "prompt": "Is 4 an even number?",
         "name": "fn_is_even",
-        "parameters": {
-            "n": 4
-        }
+        "parameters": {}
     },
     {
         "prompt": "Is 7 an even number?",
         "name": "fn_is_even",
-        "parameters": {
-            "n": 7
-        }
+        "parameters": {}
     },
     {
         "prompt": "What is the product of 3 and 5?",
         "name": "fn_multiply_numbers",
-        "parameters": {
-            "a": 3,
-            "b": 5
-        }
+        "parameters": {}
     },
     {
         "prompt": "What is the product of 12 and 4?",
         "name": "fn_multiply_numbers",
-        "parameters": {
-            "a": 12,
-            "b": 4
-        }
+        "parameters": {}
     },
     {
         "prompt": "Greet shrek",

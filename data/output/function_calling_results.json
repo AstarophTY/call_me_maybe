@@ -3,7 +3,7 @@
         "prompt": "What is the square root of 16?",
         "name": "fn_get_square_root",
         "parameters": {
-            "a": 16.0
+            "a": 16
         }
     },
     {
@@ -25,7 +25,7 @@
         "name": "fn_substitute_string_with_regex",
         "parameters": {
             "source_string": "Hello 34 I'm 233 years old",
-            "regex": "([0-9]+",
+            "regex": "34",
             "replacement": "NUMBERS"
         }
     },
@@ -34,8 +34,8 @@
         "name": "fn_substitute_string_with_regex",
         "parameters": {
             "source_string": "Programming is fun",
-            "regex": "([aeiouAEIOU])",
-            "replacement": ""
+            "regex": "[aeiouAEIOU",
+            "replacement": "**"
         }
     },
     {
@@ -51,46 +51,46 @@
         "prompt": "What is the sum of 2 and 3?",
         "name": "fn_add_numbers",
         "parameters": {
-            "a": 2.0,
-            "b": 3.0
+            "a": 2,
+            "b": 3
         }
     },
     {
         "prompt": "What is the sum of 265 and 345?",
         "name": "fn_add_numbers",
         "parameters": {
-            "a": 265.0,
-            "b": 345.0
+            "a": 265,
+            "b": 345
         }
     },
     {
         "prompt": "Is 4 an even number?",
         "name": "fn_is_even",
         "parameters": {
-            "n": 4.000000000000001
+            "n": 4
         }
     },
     {
         "prompt": "Is 7 an even number?",
         "name": "fn_is_even",
         "parameters": {
-            "n": 7.000000000000001
+            "n": 7
         }
     },
     {
         "prompt": "What is the product of 3 and 5?",
         "name": "fn_multiply_numbers",
         "parameters": {
-            "a": 3.0,
-            "b": 5.0
+            "a": 3,
+            "b": 5
         }
     },
     {
         "prompt": "What is the product of 12 and 4?",
         "name": "fn_multiply_numbers",
         "parameters": {
-            "a": 12.000000000000002,
-            "b": 4.000000000000001
+            "a": 12,
+            "b": 4
         }
     },
     {

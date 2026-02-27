@@ -12,12 +12,12 @@ install:
 	$(UV) sync
 
 clean:
-	@rm -rf $(TEMP_FILE)
+	@$(RM) -rf $(TEMP_FILE)
 	@find . -type d -name "__pycache__" -exec rm -rf {} +
 	@find . -type f -name "*.py[co]" -delete
 
 debug:
-	$(UV) python -m pdb
+	$(UV) run python -m pdb -m src
 
 lint:
 	$(UV) run flake8 $(SRC_DIR)/*.py

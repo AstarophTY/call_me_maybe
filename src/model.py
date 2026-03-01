@@ -1,38 +1,56 @@
+import re
 import json
+from typing import Any, Dict, List, Set
+
 import numpy as np
-from typing import List, Dict, Any
 from pydantic import BaseModel
+
 from src.llm_sdk import Small_LLM_Model
 from src.parsing import Parsing
 
+STOP_WORDS: Set[str] = {
+    'the', 'a', 'an', 'is', 'are', 'was', 'were', 'in', 'on', 'at',
+    'to', 'of', 'for', 'with', 'what', 'how', 'all', 'by', 'from',
+    'this', 'that',
+}
+
 
 class FunctionCallingResult(BaseModel):
+    """Validated result of a function calling inference."""
+
     prompt: str
     name: str
     parameters: Dict[str, Any]
 
 
 class Model:
-    def __init__(self, parsing: Parsing):
+    """Wraps a Small_LLM_Model to perform function-calling inference."""
+
+    def __init__(self, parsing: Parsing) -> None:
+        """Initialise the model and precompute numeric token ids."""
         self.model = Small_LLM_Model()
         self.parsing = parsing
         vocab_path = self.model.get_path_to_vocabulary_json()
         with open(vocab_path, "r") as f:
-            self.vocab = json.load(f)
+            self.vocab: Dict[str, int] = json.load(f)
 
-        self.numeric_allowed_ids = []
         numeric_allowed = "0123456789.-"
-        for t_str, t_id in self.vocab.items():
-            cleant_t = t_str.replace('Ġ', '').replace('Ċ', '')
-            if cleant_t and all(c in numeric_allowed for c in cleant_t):
-                self.numeric_allowed_ids.append(t_id)
+        self.numeric_allowed_ids: List[int] = [
+            t_id
+            for t_str, t_id in self.vocab.items()
+            if (
+                (cleaned := t_str.replace('Ġ', '').replace('Ċ', ''))
+                and all(c in numeric_allowed for c in cleaned)
+            )
+        ]
 
     def _ensure_flat_list(self, data: Any) -> List[int]:
+        """Recursively flatten any nested list or numpy array to List[int]."""
         if hasattr(data, "tolist"):
             data = data.tolist()
         if not isinstance(data, list):
             return [int(data)]
-        flat = []
+        flat: List[int] = []
         for item in data:
             if isinstance(item, list):
                 flat.extend(self._ensure_flat_list(item))
@@ -40,120 +58,211 @@ class Model:
                 flat.append(int(item))
         return flat
 
-    def resolve_prompt(self, user_prompt: str) -> Any:
+    def resolve_prompt(self, user_prompt: str) -> Dict[str, Any]:
+        """Resolve a natural-language prompt to a function call dict."""
         system_context = (
-            "System: You are an expert API router. \
-Map requests to functions.\n"
-            "Examples:\n"
-            "- 'Hello Bob' -> fn_greet(name='Bob')\n"
-            "- 'Sum of 1 and 1' -> fn_add_numbers(a=1, b=1)\n"
-            "- 'Root of 9' -> fn_get_square_root(a=9)\n\n"
+            "System: You are an expert API router. "
+            "Map user requests to the most appropriate function "
+            "based on the description.\n\n"
+            "Example formats:\n"
+            "- User: 'Hello Alice' -> Function with greeting "
+            "purpose, parameter: name\n"
+            "- User: 'What is 5 plus 3?' -> Function for adding "
+            "numbers, parameters: a, b\n"
+            "- User: 'Flip the text abc' -> Function for reversing "
+            "text, parameter: string\n\n"
             "Available Functions:\n"
         )
         for fn in self.parsing.functions:
-            system_context += f"- {fn.fn_name}({', '.join(fn.args_names)})\n"
+            param_str = ', '.join(
+                f"{arg}: {fn.args_types.get(arg, 'str')}"
+                for arg in fn.args_names
+            )
+            system_context += f"- {fn.fn_name}({param_str})\n"
+            if fn.description:
+                system_context += f"  Description: {fn.description}\n"
 
-        full_prompt = f"{system_context}\n\
-User Request: {user_prompt}\nJSON response:"
+        full_prompt = (
+            f"{system_context}\nUser Request: {user_prompt}\nJSON response:"
+        )
 
         ids = self._ensure_flat_list(self.model._encode(full_prompt))
         ids.extend(self._ensure_flat_list(self.model._encode('{"prompt": "')))
-        ids.extend(self._ensure_flat_list(self.model._encode(user_prompt)))
-        ids.extend(self._ensure_flat_list(self.model._encode('", "name": "')))
+        ids.extend(self._ensure_flat_list(
+            self.model._encode(user_prompt.replace('"', '\\"'))
+        ))
+        ids.extend(self._ensure_flat_list(
+            self.model._encode('", "name": "')
+        ))
 
-        fn_names = [fn.fn_name for fn in self.parsing.functions]
-        selected_fn = self._decode_limited_choice(ids, fn_names)
+        selected_fn = self._select_best_function(
+            user_prompt, self.parsing.functions, ids
+        )
 
         ids.extend(self._ensure_flat_list(self.model._encode(selected_fn)))
-        ids.extend(self._ensure_flat_list(self.model._encode(
-            '", "parameters": {')))
+        ids.extend(self._ensure_flat_list(
+            self.model._encode('", "parameters": {')
+        ))
 
         try:
-            fn_def = next(f for f in self.parsing.functions
-                          if f.fn_name == selected_fn)
-            params_ids = self._generate_parameters(ids, fn_def)
-            ids.extend(params_ids)
+            fn_def = next(
+                f for f in self.parsing.functions if f.fn_name == selected_fn
+            )
+            ids.extend(self._generate_parameters(ids, fn_def, user_prompt))
         except StopIteration:
             pass
 
         ids.extend(self._ensure_flat_list(self.model._encode('}}')))
 
         full_text = self.model._decode(ids)
-        json_str = full_text.split("JSON response:")[-1].strip()
+        json_str = self._repair_json(
+            full_text.split("JSON response:")[-1].strip()
+        )
 
         try:
-            data = json.loads(json_str)
-            for k, v in data["parameters"].items():
+            data: Dict[str, Any] = json.loads(json_str)
+        except Exception:
+            return {
+                "prompt": user_prompt,
+                "name": selected_fn,
+                "parameters": {},
+            }
+
+        try:
+            for k, v in data.get("parameters", {}).items():
                 if isinstance(v, float) and abs(v - round(v)) < 1e-7:
                     data["parameters"][k] = int(round(v))
+                if isinstance(v, str) and '[' in v and ']' not in v:
+                    data["parameters"][k] = v + ']'
             return FunctionCallingResult(**data).model_dump()
         except Exception:
             return {
                 "prompt": user_prompt,
                 "name": selected_fn,
-                "parameters": {}
+                "parameters": {},
             }
 
-    def _decode_limited_choice(self, current_ids: List[int],
-                               choices: List[str]) -> str:
-        scores = []
+    def _repair_json(self, json_str: str) -> str:
+        """Fix common JSON generation issues.
+
+        Handles unescaped backslashes and unclosed braces.
+        """
+        def fix_string_value(m: re.Match) -> str:
+            inner = re.sub(r'\\(?!["\\/bfnrtu])', r'\\\\', m.group(1))
+            return f'"{inner}"'
+
+        json_str = re.sub(r'"((?:[^"\\]|\\.)*)"', fix_string_value, json_str)
+
+        open_braces = json_str.count('{') - json_str.count('}')
+        if open_braces > 0:
+            json_str = json_str.rstrip() + '}' * open_braces
+
+        return json_str
+
+    def _select_best_function(
+        self,
+        prompt: str,
+        functions: List[Any],
+        current_ids: List[int],
+    ) -> str:
+        """Select the most relevant function.
+
+        Uses description word overlap, falling back to logits.
+        """
+        prompt_lower = prompt.lower()
+        prompt_words = set(re.findall(r'\b\w+\b', prompt_lower)) - STOP_WORDS
+
+        scores: Dict[str, int] = {}
+        for fn in functions:
+            score = 0
+            if fn.description:
+                desc_lower = fn.description.lower()
+                desc_words = (
+                    set(re.findall(r'\b\w+\b', desc_lower))
+                    - STOP_WORDS
+                )
+                score += len(prompt_words & desc_words) * 50
+                for p_word in prompt_words:
+                    for d_word in desc_words:
+                        if len(p_word) > 3 and len(d_word) > 3:
+                            if p_word in d_word or d_word in p_word:
+                                score += 30
+            scores[fn.fn_name] = score
+
+        max_score = max(scores.values())
+        if max_score > 0:
+            sorted_scores = sorted(scores.values(), reverse=True)
+            if len(sorted_scores) == 1 or sorted_scores[1] < sorted_scores[0]:
+                return max(scores, key=lambda k: scores[k])
+
+        return self._decode_limited_choice(
+            current_ids, [f.fn_name for f in functions]
+        )
+
+    def _decode_limited_choice(
+        self, current_ids: List[int], choices: List[str]
+    ) -> str:
+        """Return the choice with the highest average log-prob."""
+        scores: List[float] = []
         for choice in choices:
             temp_ids = list(current_ids)
             target_tokens = self._ensure_flat_list(self.model._encode(choice))
             log_prob_sum = 0.0
-
             for t_id in target_tokens:
                 logits = self.model.get_logits_from_input_ids(temp_ids)
                 logits_arr = np.array(logits)
-                step_logits = (logits_arr[-1] if len(logits_arr.shape) > 1
-                               else logits_arr)
-
+                step_logits = (
+                    logits_arr[-1] if len(logits_arr.shape) > 1 else logits_arr
+                )
                 shift = step_logits - np.max(step_logits)
                 log_probs = shift - np.log(np.sum(np.exp(shift)) + 1e-10)
-
                 log_prob_sum += float(log_probs[t_id])
                 temp_ids.append(t_id)
-
             scores.append(log_prob_sum / max(len(target_tokens), 1))
 
         return choices[int(np.argmax(scores))]
 
-    def _generate_parameters(self, current_ids: List[int],
-                             fn_def: Any) -> List[int]:
-        param_ids = []
+    def _generate_parameters(
+        self, current_ids: List[int], fn_def: Any, user_prompt: str
+    ) -> List[int]:
+        """Generate token ids for all fn_def parameters given the context."""
+        param_ids: List[int] = []
         for i, p_name in enumerate(fn_def.args_names):
             p_type = fn_def.args_types.get(p_name, "str")
             param_ids.extend(
-                self._ensure_flat_list(self.model._encode(f'"{p_name}": ')))
-
-            if p_type in ["str"]:
+                self._ensure_flat_list(self.model._encode(f'"{p_name}": '))
+            )
+            if p_type == "str":
                 param_ids.extend(
-                    self._ensure_flat_list(self.model._encode('"')))
-                val_ids = self._generate_until_quote(current_ids + param_ids)
-                param_ids.extend(val_ids)
+                    self._ensure_flat_list(self.model._encode('"'))
+                )
                 param_ids.extend(
-                    self._ensure_flat_list(self.model._encode('"')))
+                    self._generate_until_quote(current_ids + param_ids)
+                )
+                param_ids.extend(
+                    self._ensure_flat_list(self.model._encode('"'))
+                )
             else:
-                val_ids = self._generate_numeric(current_ids + param_ids)
-                param_ids.extend(val_ids)
-
+                param_ids.extend(
+                    self._generate_numeric(current_ids + param_ids)
+                )
             if i < len(fn_def.args_names) - 1:
                 param_ids.extend(
-                    self._ensure_flat_list(self.model._encode(", ")))
+                    self._ensure_flat_list(self.model._encode(", "))
+                )
         return param_ids
 
     def _generate_until_quote(self, current_ids: List[int]) -> List[int]:
+        """Greedily generate tokens until a closing quote or newline."""
         generated: List[int] = []
-
-        for _ in range(50):
+        for _ in range(100):
             logits = self.model.get_logits_from_input_ids(
-                current_ids + generated)
+                current_ids + generated
+            )
             logits_arr = np.array(logits)
-            step_logits = (logits_arr[-1] if len(logits_arr.shape) > 1
-                           else logits_arr)
-            quote_id = self.vocab.get('"', -1)
-            if quote_id != -1:
-                step_logits[quote_id] = -np.inf
+            step_logits = (
+                logits_arr[-1] if len(logits_arr.shape) > 1 else logits_arr
+            )
             next_token = int(np.argmax(step_logits))
             char = self.model._decode([next_token])
             if '"' in char or '\n' in char:
@@ -162,27 +271,26 @@ User Request: {user_prompt}\nJSON response:"
         return generated
 
     def _generate_numeric(self, current_ids: List[int]) -> List[int]:
+        """Greedily generate numeric tokens until a stop character."""
         generated: List[int] = []
         stop_chars = [",", "}", " ", "\n"]
-
         for _ in range(15):
             logits = self.model.get_logits_from_input_ids(
-                current_ids + generated)
+                current_ids + generated
+            )
             logits_arr = np.array(logits)
-            step_logits = (logits_arr[-1] if len(logits_arr.shape) > 1
-                           else logits_arr)
-
+            step_logits = (
+                logits_arr[-1] if len(logits_arr.shape) > 1 else logits_arr
+            )
             mask = np.full_like(step_logits, -np.inf)
             mask[self.numeric_allowed_ids] = 0
-
             for char in stop_chars:
                 stop_id = self.vocab.get(char) or self.vocab.get("Ġ" + char)
                 if stop_id:
                     mask[stop_id] = 0
-
             next_token = int(np.argmax(step_logits + mask))
             char = self.model._decode([next_token])
-            if not any(c in stop_chars for c in char):
+            if any(c in stop_chars for c in char):
                 break
             generated.append(next_token)
         return generated

@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 from typing import List
-from pydantic import BaseModel, FilePath, model_validator, ValidationError
+from pydantic import BaseModel, FilePath, model_validator
 from enum import Enum
 
 
@@ -14,6 +14,7 @@ class Types(str, Enum):
 
 class FunctionValidation(BaseModel):
     fn_name: str
+    description: str = ""
     args_names: List[str]
     args_types: dict[str, Types]
     return_type: Types
@@ -36,7 +37,31 @@ class ParsingValidation(BaseModel):
     def load_and_validate_contents(self) -> 'ParsingValidation':
         with open(self.functions_definition, "r") as f:
             data = json.load(f)
-            self.functions = [FunctionValidation(**fn) for fn in data]
+            functions = []
+            type_mapping = {
+                "number": Types.int,
+                "string": Types.str,
+                "boolean": Types.bool,
+                "float": Types.float,
+            }
+            for fn in data:
+                fn_name = fn["name"]
+                args_names = list(fn["parameters"].keys())
+                args_types = {
+                    k: type_mapping.get(v["type"], Types.str)
+                    for k, v in fn["parameters"].items()
+                }
+                return_type = type_mapping.get(
+                    fn["returns"]["type"], Types.str
+                )
+                functions.append(FunctionValidation(
+                    fn_name=fn_name,
+                    description=fn.get("description", ""),
+                    args_names=args_names,
+                    args_types=args_types,
+                    return_type=return_type,
+                ))
+            self.functions = functions
 
         with open(self.input, "r") as f:
             data = json.load(f)

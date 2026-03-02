@@ -67,4 +67,10 @@ class ParsingValidation(BaseModel):
             data = json.load(f)
             self.prompts = [PromptValidation(**p) for p in data]
 
+        try:
+            with open(self.output, "w") as f:
+                f.write("")
+        except Exception:
+            raise ValueError("output path is invalid")
+
         return self

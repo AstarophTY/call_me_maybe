@@ -1,6 +1,7 @@
+*This project has been created as part of the 42 curriculum by sgil--de*
+
 # Call Me Maybe
 
-### This project has been created as part of the 42 curriculum by sgil--de
 
 ## Description
 

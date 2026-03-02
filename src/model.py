@@ -44,6 +44,8 @@ class Model:
             )
         ]
 
+        self.threshold = np.log(0.45)
+
     def _ensure_flat_list(self, data: Any) -> List[int]:
         """Recursively flatten any nested list or numpy array to List[int]."""
         if hasattr(data, "tolist"):
@@ -181,7 +183,7 @@ class Model:
         )
 
     def _decode_limited_choice(
-        self, current_ids: List[int], choices: List[str]
+        self, current_ids: List[int], choices: List[str], prompt: str = ""
     ) -> str:
         """Return the choice with the highest average log-prob."""
         scores: List[float] = []
@@ -200,6 +202,9 @@ class Model:
                 log_prob_sum += float(log_probs[t_id])
                 temp_ids.append(t_id)
             scores.append(log_prob_sum / max(len(target_tokens), 1))
+
+        if max(scores) < self.threshold:
+            raise ValueError(f"No function found {prompt}.")
 
         return choices[int(np.argmax(scores))]
 
@@ -236,7 +241,7 @@ class Model:
     def _generate_until_quote(self, current_ids: List[int]) -> List[int]:
         """Greedily generate tokens until a closing quote or newline."""
         generated: List[int] = []
-        for _ in range(100):
+        while True:
             logits = self.model.get_logits_from_input_ids(
                 current_ids + generated
             )
@@ -255,7 +260,7 @@ class Model:
         """Greedily generate numeric tokens until a stop character."""
         generated: List[int] = []
         stop_chars = [",", "}", " ", "\n"]
-        for _ in range(15):
+        while True:
             logits = self.model.get_logits_from_input_ids(
                 current_ids + generated
             )

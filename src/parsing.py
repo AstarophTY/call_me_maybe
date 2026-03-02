@@ -19,7 +19,12 @@ class Parsing:
         try:
             values = ParsingValidation(**clean_args)
         except ValidationError as e:
-            print(f"Error: \n{e}", file=stderr)
+            print("\nValidation Error:", file=stderr)
+            for error in e.errors():
+                message = error['msg']
+                if message.startswith("Value error, "):
+                    message.replace("Value error, ", "", 1)
+                print(f"Error: {message}", file=stderr)
 
         self.prompts = [prompt.prompt for prompt in values.prompts]
         self.functions = list(values.functions)

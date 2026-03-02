@@ -5,8 +5,7 @@ from sys import stderr
 
 
 def main() -> None:
-    """
-        Main function
+    """Main function
     """
     try:
         parsing = Parsing()

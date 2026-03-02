@@ -5,6 +5,9 @@ from sys import stderr
 
 
 def main() -> None:
+    """
+        Main function
+    """
     try:
         parsing = Parsing()
     except Exception:

@@ -6,6 +6,12 @@ from enum import Enum
 
 
 class Types(str, Enum):
+    """Types for function
+
+    Args:
+        str (name): Name of type
+        Enum (name): Name of type
+    """
     float = "float"
     int = "int"
     str = "str"
@@ -13,6 +19,8 @@ class Types(str, Enum):
 
 
 class FunctionValidation(BaseModel):
+    """Check function if is good format
+    """
     fn_name: str
     description: str = ""
     args_names: List[str]
@@ -21,10 +29,18 @@ class FunctionValidation(BaseModel):
 
 
 class PromptValidation(BaseModel):
+    """Check prompt if is valid
+    """
     prompt: str
 
 
 class ParsingValidation(BaseModel):
+    """Valid and create parsing object
+
+    Returns:
+        ParsingValidation: Parsing object
+    """
+
     functions_definition: FilePath = Path(
         "data/input/functions_definition.json"
     )
@@ -35,6 +51,11 @@ class ParsingValidation(BaseModel):
 
     @model_validator(mode="after")
     def load_and_validate_contents(self) -> 'ParsingValidation':
+        """Validate and build function and prompts
+
+        Returns:
+            ParsingValidation: Parsing object with prompt functions
+        """
         with open(self.functions_definition, "r") as f:
             data = json.load(f)
             functions = []

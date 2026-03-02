@@ -12,19 +12,16 @@ class Types(str, Enum):
         str (name): Name of type
         Enum (name): Name of type
     """
-    float = "float"
-    int = "int"
-    str = "str"
-    bool = "bool"
+    number = "number"
+    string = "string"
 
 
 class FunctionValidation(BaseModel):
     """Check function if is good format."""
-    fn_name: str
+    name: str
     description: str = ""
-    args_names: List[str]
-    args_types: dict[str, Types]
-    return_type: Types
+    parameters: dict[str, dict[str, str]]
+    return_type: dict[str, Types]
 
 
 class PromptValidation(BaseModel):
@@ -57,28 +54,12 @@ class ParsingValidation(BaseModel):
         with open(self.functions_definition, "r") as f:
             data = json.load(f)
             functions = []
-            type_mapping = {
-                "number": Types.int,
-                "string": Types.str,
-                "boolean": Types.bool,
-                "float": Types.float,
-            }
             for fn in data:
-                fn_name = fn["name"]
-                args_names = list(fn["parameters"].keys())
-                args_types = {
-                    k: type_mapping.get(v["type"], Types.str)
-                    for k, v in fn["parameters"].items()
-                }
-                return_type = type_mapping.get(
-                    fn["returns"]["type"], Types.str
-                )
                 functions.append(FunctionValidation(
-                    fn_name=fn_name,
+                    name=fn["name"],
                     description=fn.get("description", ""),
-                    args_names=args_names,
-                    args_types=args_types,
-                    return_type=return_type,
+                    parameters=fn["parameters"],
+                    return_type=fn["returns"],
                 ))
             self.functions = functions
 

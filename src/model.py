@@ -73,10 +73,10 @@ class Model:
         )
         for fn in self.parsing.functions:
             param_str = ', '.join(
-                f"{arg}: {fn.args_types.get(arg, 'str')}"
-                for arg in fn.args_names
+                f"{arg}: {fn.parameters[arg].get('type')}"
+                for arg in fn.parameters.keys()
             )
-            system_context += f"- {fn.fn_name}({param_str})\n"
+            system_context += f"- {fn.name}({param_str})\n"
             if fn.description:
                 system_context += f"  Description: {fn.description}\n"
 
@@ -104,7 +104,7 @@ class Model:
 
         try:
             fn_def = next(
-                f for f in self.parsing.functions if f.fn_name == selected_fn
+                f for f in self.parsing.functions if f.name == selected_fn
             )
             ids.extend(self._generate_parameters(ids, fn_def, user_prompt))
         except StopIteration:
@@ -168,7 +168,7 @@ class Model:
                         if len(p_word) > 3 and len(d_word) > 3:
                             if p_word in d_word or d_word in p_word:
                                 score += 30
-            scores[fn.fn_name] = score
+            scores[fn.name] = score
 
         max_score = max(scores.values())
         if max_score > 0:
@@ -177,7 +177,7 @@ class Model:
                 return max(scores, key=lambda k: scores[k])
 
         return self._decode_limited_choice(
-            current_ids, [f.fn_name for f in functions]
+            current_ids, [f.name for f in functions]
         )
 
     def _decode_limited_choice(
@@ -208,12 +208,12 @@ class Model:
     ) -> List[int]:
         """Generate token ids for all fn_def parameters given the context."""
         param_ids: List[int] = []
-        for i, p_name in enumerate(fn_def.args_names):
-            p_type = fn_def.args_types.get(p_name, "str")
+        for i, p_name in enumerate(fn_def.parameters.keys()):
+            p_type = fn_def.parameters[p_name].get("type")
             param_ids.extend(
                 self._ensure_flat_list(self.model.encode(f'"{p_name}": '))
             )
-            if p_type == "str":
+            if p_type == "string":
                 param_ids.extend(
                     self._ensure_flat_list(self.model.encode('"'))
                 )
@@ -227,7 +227,7 @@ class Model:
                 param_ids.extend(
                     self._generate_numeric(current_ids + param_ids)
                 )
-            if i < len(fn_def.args_names) - 1:
+            if i < len(fn_def.parameters.keys()) - 1:
                 param_ids.extend(
                     self._ensure_flat_list(self.model.encode(", "))
                 )

@@ -6,7 +6,7 @@ from enum import Enum
 
 
 class Types(str, Enum):
-    """Types for function
+    """Types for function.
 
     Args:
         str (name): Name of type
@@ -19,8 +19,7 @@ class Types(str, Enum):
 
 
 class FunctionValidation(BaseModel):
-    """Check function if is good format
-    """
+    """Check function if is good format."""
     fn_name: str
     description: str = ""
     args_names: List[str]
@@ -29,13 +28,12 @@ class FunctionValidation(BaseModel):
 
 
 class PromptValidation(BaseModel):
-    """Check prompt if is valid
-    """
+    """Check prompt if is valid."""
     prompt: str
 
 
 class ParsingValidation(BaseModel):
-    """Valid and create parsing object
+    """Valid and create parsing object.
 
     Returns:
         ParsingValidation: Parsing object
@@ -51,7 +49,7 @@ class ParsingValidation(BaseModel):
 
     @model_validator(mode="after")
     def load_and_validate_contents(self) -> 'ParsingValidation':
-        """Validate and build function and prompts
+        """Validate and build function and prompts.
 
         Returns:
             ParsingValidation: Parsing object with prompt functions

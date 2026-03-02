@@ -25,4 +25,4 @@ lint:
 
 lint-strict:
 	$(UV) run flake8 $(SRC_DIR)/*.py
-	$(UV) run mypy $(SRC_DIR) --strict
+	$(UV) run mypy $(SRC_DIR)/*.py --strict

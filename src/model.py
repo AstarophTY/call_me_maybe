@@ -30,7 +30,7 @@ class Model:
         """Initialise the model and precompute numeric token ids."""
         self.model = Small_LLM_Model()
         self.parsing = parsing
-        vocab_path = self.model.get_path_to_vocabulary_json()
+        vocab_path = self.model.get_path_to_vocab_file()
         with open(vocab_path, "r") as f:
             self.vocab: Dict[str, int] = json.load(f)
 
@@ -65,8 +65,6 @@ class Model:
             "Map user requests to the most appropriate function "
             "based on the description.\n\n"
             "Example formats:\n"
-            "- User: 'Hello Alice' -> Function with greeting "
-            "purpose, parameter: name\n"
             "- User: 'What is 5 plus 3?' -> Function for adding "
             "numbers, parameters: a, b\n"
             "- User: 'Flip the text abc' -> Function for reversing "
@@ -86,22 +84,22 @@ class Model:
             f"{system_context}\nUser Request: {user_prompt}\nJSON response:"
         )
 
-        ids = self._ensure_flat_list(self.model._encode(full_prompt))
-        ids.extend(self._ensure_flat_list(self.model._encode('{"prompt": "')))
+        ids = self._ensure_flat_list(self.model.encode(full_prompt))
+        ids.extend(self._ensure_flat_list(self.model.encode('{"prompt": "')))
         ids.extend(self._ensure_flat_list(
-            self.model._encode(user_prompt.replace('"', '\\"'))
+            self.model.encode(user_prompt.replace('"', '\\"'))
         ))
         ids.extend(self._ensure_flat_list(
-            self.model._encode('", "name": "')
+            self.model.encode('", "name": "')
         ))
 
-        selected_fn = self._select_best_function(
+        selected_fn = self._select_function(
             user_prompt, self.parsing.functions, ids
         )
 
-        ids.extend(self._ensure_flat_list(self.model._encode(selected_fn)))
+        ids.extend(self._ensure_flat_list(self.model.encode(selected_fn)))
         ids.extend(self._ensure_flat_list(
-            self.model._encode('", "parameters": {')
+            self.model.encode('", "parameters": {')
         ))
 
         try:
@@ -112,9 +110,9 @@ class Model:
         except StopIteration:
             pass
 
-        ids.extend(self._ensure_flat_list(self.model._encode('}}')))
+        ids.extend(self._ensure_flat_list(self.model.encode('}}')))
 
-        full_text = self.model._decode(ids)
+        full_text = self.model.decode(ids)
         json_str = full_text.split("JSON response:")[-1].strip()
 
         try:
@@ -142,7 +140,7 @@ class Model:
                 "parameters": {},
             }
 
-    def _select_best_function(
+    def _select_function(
         self,
         prompt: str,
         functions: List[Any],
@@ -189,7 +187,7 @@ class Model:
         scores: List[float] = []
         for choice in choices:
             temp_ids = list(current_ids)
-            target_tokens = self._ensure_flat_list(self.model._encode(choice))
+            target_tokens = self._ensure_flat_list(self.model.encode(choice))
             log_prob_sum = 0.0
             for t_id in target_tokens:
                 logits = self.model.get_logits_from_input_ids(temp_ids)
@@ -213,17 +211,17 @@ class Model:
         for i, p_name in enumerate(fn_def.args_names):
             p_type = fn_def.args_types.get(p_name, "str")
             param_ids.extend(
-                self._ensure_flat_list(self.model._encode(f'"{p_name}": '))
+                self._ensure_flat_list(self.model.encode(f'"{p_name}": '))
             )
             if p_type == "str":
                 param_ids.extend(
-                    self._ensure_flat_list(self.model._encode('"'))
+                    self._ensure_flat_list(self.model.encode('"'))
                 )
                 param_ids.extend(
                     self._generate_until_quote(current_ids + param_ids)
                 )
                 param_ids.extend(
-                    self._ensure_flat_list(self.model._encode('"'))
+                    self._ensure_flat_list(self.model.encode('"'))
                 )
             else:
                 param_ids.extend(
@@ -231,7 +229,7 @@ class Model:
                 )
             if i < len(fn_def.args_names) - 1:
                 param_ids.extend(
-                    self._ensure_flat_list(self.model._encode(", "))
+                    self._ensure_flat_list(self.model.encode(", "))
                 )
         return param_ids
 
@@ -247,7 +245,7 @@ class Model:
                 logits_arr[-1] if len(logits_arr.shape) > 1 else logits_arr
             )
             next_token = int(np.argmax(step_logits))
-            char = self.model._decode([next_token])
+            char = self.model.decode([next_token])
             if '"' in char or '\n' in char:
                 break
             generated.append(next_token)
@@ -272,7 +270,7 @@ class Model:
                 if stop_id:
                     mask[stop_id] = 0
             next_token = int(np.argmax(step_logits + mask))
-            char = self.model._decode([next_token])
+            char = self.model.decode([next_token])
             if any(c in stop_chars for c in char):
                 break
             generated.append(next_token)

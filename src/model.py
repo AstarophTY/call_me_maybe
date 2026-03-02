@@ -115,9 +115,7 @@ class Model:
         ids.extend(self._ensure_flat_list(self.model._encode('}}')))
 
         full_text = self.model._decode(ids)
-        json_str = self._repair_json(
-            full_text.split("JSON response:")[-1].strip()
-        )
+        json_str = full_text.split("JSON response:")[-1].strip()
 
         try:
             data: Dict[str, Any] = json.loads(json_str)
@@ -134,6 +132,8 @@ class Model:
                     data["parameters"][k] = int(round(v))
                 if isinstance(v, str) and '[' in v and ']' not in v:
                     data["parameters"][k] = v + ']'
+                if isinstance(v, str) and '(' in v and ')' not in v:
+                    data["parameters"][k] = v + ')'
             return FunctionCallingResult(**data).model_dump()
         except Exception:
             return {
@@ -141,23 +141,6 @@ class Model:
                 "name": selected_fn,
                 "parameters": {},
             }
-
-    def _repair_json(self, json_str: str) -> str:
-        """Fix common JSON generation issues.
-
-        Handles unescaped backslashes and unclosed braces.
-        """
-        def fix_string_value(m: re.Match) -> str:
-            inner = re.sub(r'\\(?!["\\/bfnrtu])', r'\\\\', m.group(1))
-            return f'"{inner}"'
-
-        json_str = re.sub(r'"((?:[^"\\]|\\.)*)"', fix_string_value, json_str)
-
-        open_braces = json_str.count('{') - json_str.count('}')
-        if open_braces > 0:
-            json_str = json_str.rstrip() + '}' * open_braces
-
-        return json_str
 
     def _select_best_function(
         self,

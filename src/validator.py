@@ -20,15 +20,15 @@ class Types(str, Enum):
 
 class FunctionValidation(BaseModel):
     """Check function if is good format."""
-    name: str = Field(ge=1)
-    description: str = Field(ge=1)
+    name: str = Field(min_length=1)
+    description: str = Field(min_length=1)
     parameters: dict[str, dict[str, Types]]
     returns: dict[str, Types]
 
 
 class PromptValidation(BaseModel):
     """Check prompt if is valid."""
-    prompt: str = Field(ge=1)
+    prompt: str = Field(min_length=1)
 
 
 class ParsingValidation(BaseModel):
@@ -58,6 +58,12 @@ class ParsingValidation(BaseModel):
                 data = json.load(f)
                 functions = []
                 for fn in data:
+                    print(fn)
+                    for k, v in fn.get("parameters").items():
+                        if len(k) <= 0:
+                            raise ValueError("Parameters name can't be empty.")
+                        if v.get("type") and len(v.get("type")) <= 0:
+                            raise ValueError("Parameters value can't be empty")
                     functions.append(FunctionValidation(**fn))
                 self.functions = functions
         except FileNotFoundError:

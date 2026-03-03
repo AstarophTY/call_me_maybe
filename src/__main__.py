@@ -9,7 +9,8 @@ def main() -> None:
     """
     try:
         parsing = Parsing()
-    except Exception:
+    except Exception as e:
+        print(f"Error on parsing: {e}", file=stderr)
         return
 
     engine = Model(parsing)

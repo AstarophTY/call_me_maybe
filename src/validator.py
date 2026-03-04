@@ -42,7 +42,7 @@ class ParsingValidation(BaseModel):
         "data/input/functions_definition.json"
     )
     input: FilePath = Path("data/input/function_calling_tests.json")
-    output: FilePath = Path("data/output/function_calling_results.json")
+    output: str = "data/output/function_calling_results.json"
     functions: List[FunctionValidation] = []
     prompts: List[PromptValidation] = []
 
@@ -76,5 +76,6 @@ class ParsingValidation(BaseModel):
         except FileNotFoundError:
             raise ValueError(f"No such file or directory: '{self.input}'")
 
-        self.output.parent.mkdir(exist_ok=True, parents=True)
+        output_path = Path(self.output)
+        output_path.parent.mkdir(exist_ok=True, parents=True)
         return self

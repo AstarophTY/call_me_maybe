@@ -82,6 +82,8 @@ class Model:
             if fn.description:
                 system_context += f"  Description: {fn.description}\n"
 
+        functions = {v.name: v for v in self.parsing.functions}
+
         full_prompt = (
             f"{system_context}\nUser Request: {user_prompt}\nJSON response:"
         )
@@ -108,7 +110,7 @@ class Model:
             fn_def = next(
                 f for f in self.parsing.functions if f.name == selected_fn
             )
-            ids.extend(self._generate_parameters(ids, fn_def, user_prompt))
+            ids.extend(self._generate_parameters(ids, fn_def))
         except StopIteration:
             pass
 
@@ -128,8 +130,9 @@ class Model:
 
         try:
             for k, v in data.get("parameters", {}).items():
-                if isinstance(v, float) and abs(v - round(v)) < 1e-7:
-                    data["parameters"][k] = int(round(v))
+                if (functions[selected_fn].parameters[k]["type"] == "number"
+                        and isinstance(v, (int))):
+                    data["parameters"][k] = float(v)
                 if isinstance(v, str) and '[' in v and ']' not in v:
                     data["parameters"][k] = v + ']'
                 if isinstance(v, str) and '(' in v and ')' not in v:
@@ -209,7 +212,7 @@ class Model:
         return choices[int(np.argmax(scores))]
 
     def _generate_parameters(
-        self, current_ids: List[int], fn_def: Any, user_prompt: str
+        self, current_ids: List[int], fn_def: Any
     ) -> List[int]:
         """Generate token ids for all fn_def parameters given the context."""
         param_ids: List[int] = []

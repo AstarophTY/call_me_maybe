@@ -58,7 +58,6 @@ class ParsingValidation(BaseModel):
                 data = json.load(f)
                 functions = []
                 for fn in data:
-                    print(fn)
                     for k, v in fn.get("parameters").items():
                         if len(k) <= 0:
                             raise ValueError("Parameters name can't be empty.")

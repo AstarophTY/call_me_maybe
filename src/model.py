@@ -91,7 +91,8 @@ class Model:
         ids = self._ensure_flat_list(self.model.encode(full_prompt))
         ids.extend(self._ensure_flat_list(self.model.encode('{"prompt": "')))
         ids.extend(self._ensure_flat_list(
-            self.model.encode(user_prompt.replace('"', '\\"'))
+            self.model.encode(user_prompt.replace("\\", "\\\\")
+                              .replace('"', '\\"'))
         ))
         ids.extend(self._ensure_flat_list(
             self.model.encode('", "name": "')
@@ -141,7 +142,7 @@ class Model:
                     if '(' in v and ')' not in v:
                         data["parameters"][k] = v + ')'
             return FunctionCallingResult(**data).model_dump()
-        except Exception:
+        except Exception as e:
             return {
                 "prompt": user_prompt,
                 "name": selected_fn,

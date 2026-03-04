@@ -142,7 +142,7 @@ class Model:
                     if '(' in v and ')' not in v:
                         data["parameters"][k] = v + ')'
             return FunctionCallingResult(**data).model_dump()
-        except Exception as e:
+        except Exception:
             return {
                 "prompt": user_prompt,
                 "name": selected_fn,

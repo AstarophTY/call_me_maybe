@@ -133,10 +133,13 @@ class Model:
                 if (functions[selected_fn].parameters[k]["type"] == "number"
                         and isinstance(v, (int))):
                     data["parameters"][k] = float(v)
-                if isinstance(v, str) and '[' in v and ']' not in v:
-                    data["parameters"][k] = v + ']'
-                if isinstance(v, str) and '(' in v and ')' not in v:
-                    data["parameters"][k] = v + ')'
+                if isinstance(v, str):
+                    data["parameters"][k] = v.strip()
+                    v = data["parameters"][k] = v.strip()
+                    if '[' in v and ']' not in v:
+                        data["parameters"][k] = v + ']'
+                    if '(' in v and ')' not in v:
+                        data["parameters"][k] = v + ')'
             return FunctionCallingResult(**data).model_dump()
         except Exception:
             return {

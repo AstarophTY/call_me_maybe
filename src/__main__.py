@@ -19,12 +19,12 @@ def main() -> None:
     results = []
     with tqdm(desc="Process prompt", total=len(parsing.prompts)) as progress:
         for prompt_text in parsing.prompts:
+            progress.update(1)
             try:
                 result = engine.resolve_prompt(prompt_text)
                 results.append(result)
             except Exception as e:
                 print(f"Error on prompt: {e}", file=stderr)
-            progress.update(1)
 
     time = progress.format_dict['elapsed']
 

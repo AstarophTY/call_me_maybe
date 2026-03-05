@@ -44,6 +44,36 @@ class Model:
             )
         ]
 
+        self.system_context_text = (
+            "System: You are an expert API router. "
+            "Map user requests to the most appropriate function "
+            "based on the description.\n\n"
+            "Example formats:\n"
+            "- User: 'What is 5 plus 3?' -> Function for adding "
+            "numbers, parameters: a, b\n"
+            "- User: 'Flip the text abc' -> Function for reversing "
+            "text, parameter: string\n\n"
+            "Available Functions:\n"
+        )
+        for fn in self.parsing.functions:
+            param_str = ', '.join(
+                f"{arg}: {fn.parameters[arg].get('type')}"
+                for arg in fn.parameters.keys()
+            )
+            self.system_context_text += f"- {fn.name}({param_str})\n"
+            if fn.description:
+                self.system_context_text += (
+                    f"  Description: {fn.description}\n")
+
+        self.system_ids = self._ensure_flat_list(
+            self.model.encode(self.system_context_text))
+        self.json_start_ids = self._ensure_flat_list(
+            self.model.encode('\nUser Request: '))
+        self.json_prompt_key_ids = self._ensure_flat_list(
+            self.model.encode('\nJSON response: {"prompt": "'))
+
+        self.min_function = np.log(0.45)
+
         self.min_function = np.log(0.45)
 
     def _ensure_flat_list(self, data: Any) -> List[int]:
@@ -62,38 +92,19 @@ class Model:
 
     def resolve_prompt(self, user_prompt: str) -> Dict[str, Any]:
         """Resolve a natural-language prompt to a function call dict."""
-        system_context = (
-            "System: You are an expert API router. "
-            "Map user requests to the most appropriate function "
-            "based on the description.\n\n"
-            "Example formats:\n"
-            "- User: 'What is 5 plus 3?' -> Function for adding "
-            "numbers, parameters: a, b\n"
-            "- User: 'Flip the text abc' -> Function for reversing "
-            "text, parameter: string\n\n"
-            "Available Functions:\n"
-        )
-        for fn in self.parsing.functions:
-            param_str = ', '.join(
-                f"{arg}: {fn.parameters[arg].get('type')}"
-                for arg in fn.parameters.keys()
-            )
-            system_context += f"- {fn.name}({param_str})\n"
-            if fn.description:
-                system_context += f"  Description: {fn.description}\n"
+        ids = list(self.system_ids)
+        ids.extend(self.json_start_ids)
+        ids.extend(self._ensure_flat_list(self.model.encode(user_prompt)))
+        ids.extend(self.json_prompt_key_ids)
+        clean_user_prompt = (
+            user_prompt.replace("\\", "\\\\").replace('"', '\\"'))
+        ids.extend(self._ensure_flat_list(self.model.encode(
+            clean_user_prompt)))
+        ids.extend(self._ensure_flat_list(self.model.encode(
+            '", "name": "')))
 
         functions = {v.name: v for v in self.parsing.functions}
 
-        full_prompt = (
-            f"{system_context}\nUser Request: {user_prompt}\nJSON response:"
-        )
-
-        ids = self._ensure_flat_list(self.model.encode(full_prompt))
-        ids.extend(self._ensure_flat_list(self.model.encode('{"prompt": "')))
-        ids.extend(self._ensure_flat_list(
-            self.model.encode(user_prompt.replace("\\", "\\\\")
-                              .replace('"', '\\"'))
-        ))
         ids.extend(self._ensure_flat_list(
             self.model.encode('", "name": "')
         ))

@@ -68,6 +68,8 @@ class ParsingValidation(BaseModel):
         except FileNotFoundError:
             raise ValueError(f"No such file or directory: \
 '{self.functions_definition}'")
+        except Exception as e:
+            raise ValueError(f"{e}")
 
         try:
             with open(self.input, "r") as f:
@@ -75,6 +77,8 @@ class ParsingValidation(BaseModel):
                 self.prompts = [PromptValidation(**p) for p in data]
         except FileNotFoundError:
             raise ValueError(f"No such file or directory: '{self.input}'")
+        except Exception as e:
+            raise ValueError(f"{e}")
 
         output_path = Path(self.output)
         output_path.parent.mkdir(exist_ok=True, parents=True)

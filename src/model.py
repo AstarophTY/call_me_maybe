@@ -74,8 +74,6 @@ class Model:
 
         self.min_function = np.log(0.45)
 
-        self.min_function = np.log(0.45)
-
     def _ensure_flat_list(self, data: Any) -> List[int]:
         """Recursively flatten any nested list or numpy array to List[int]."""
         if hasattr(data, "tolist"):
@@ -263,7 +261,7 @@ class Model:
         """Generate arguments and stop when current char is quote."""
         generated: List[int] = []
 
-        while True:
+        for _ in range(300):
             logits = self.model.get_logits_from_input_ids(
                 current_ids + generated)
             logits_arr = np.array(logits)
@@ -300,7 +298,7 @@ class Model:
         """Greedily generate numeric tokens until a stop character."""
         generated: List[int] = []
         stop_chars = [",", "}", " ", "\n"]
-        while True:
+        for _ in range(20):
             logits = self.model.get_logits_from_input_ids(
                 current_ids + generated
             )

@@ -152,6 +152,8 @@ class Model:
                         data["parameters"][k] = v + ']'
                     if '(' in v and ')' not in v:
                         data["parameters"][k] = v + ')'
+                    if '{' in v and '}' not in v:
+                        data["parameters"][k] = v + '}'
             return FunctionCallingResult(**data).model_dump()
         except Exception:
             return {

@@ -44,7 +44,7 @@ class Model:
             )
         ]
 
-        self.threshold = np.log(0.45)
+        self.min_function = np.log(0.45)
 
     def _ensure_flat_list(self, data: Any) -> List[int]:
         """Recursively flatten any nested list or numpy array to List[int]."""
@@ -210,8 +210,8 @@ class Model:
                 temp_ids.append(t_id)
             scores.append(log_prob_sum / max(len(target_tokens), 1))
 
-        if max(scores) < self.threshold:
-            raise ValueError(f"No function found {prompt}.")
+        if max(scores) < self.min_function:
+            raise ValueError("No function found")
 
         return choices[int(np.argmax(scores))]
 
@@ -232,9 +232,10 @@ class Model:
                 param_ids.extend(
                     self._generate_until_quote(current_ids + param_ids)
                 )
-                param_ids.extend(
-                    self._ensure_flat_list(self.model.encode('"'))
-                )
+                if not self.model.decode(param_ids).endswith('"'):
+                    param_ids.extend(
+                        self._ensure_flat_list(self.model.encode('"'))
+                    )
             else:
                 param_ids.extend(
                     self._generate_numeric(current_ids + param_ids)
@@ -246,21 +247,40 @@ class Model:
         return param_ids
 
     def _generate_until_quote(self, current_ids: List[int]) -> List[int]:
-        """Greedily generate tokens until a closing quote or newline."""
+        """Generate arguments and stop when current char is quote."""
         generated: List[int] = []
+
         while True:
             logits = self.model.get_logits_from_input_ids(
-                current_ids + generated
-            )
+                current_ids + generated)
             logits_arr = np.array(logits)
-            step_logits = (
-                logits_arr[-1] if len(logits_arr.shape) > 1 else logits_arr
-            )
+            step_logits = (logits_arr[-1] if
+                           len(logits_arr.shape) > 1 else logits_arr)
+
             next_token = int(np.argmax(step_logits))
             char = self.model.decode([next_token])
-            if '"' in char or '\n' in char:
+
+            if '",' in char or '"}' in char or '"\n' in char:
                 break
+
+            if '"' in char:
+                temp_ids = current_ids + generated + [next_token]
+                future_logits = self.model.get_logits_from_input_ids(temp_ids)
+                future_step_logits = np.array(future_logits)[-1]
+                next_char = self.model.decode([
+                    int(np.argmax(future_step_logits))])
+                if any(stop_char in next_char for stop_char
+                       in [',', '}', '\n']) or next_char.strip() in [',', '}']:
+                    break
+                else:
+                    generated.append(next_token)
+                    continue
+
+            if '\n' in char:
+                break
+
             generated.append(next_token)
+
         return generated
 
     def _generate_numeric(self, current_ids: List[int]) -> List[int]:

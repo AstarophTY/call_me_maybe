@@ -65,16 +65,16 @@ class Model:
                 self.system_context_text += (
                     f"  Description: {fn.description}\n")
 
-        self.system_ids = self._ensure_flat_list(
+        self.system_ids = self._ensure_list(
             self.model.encode(self.system_context_text))
-        self.json_start_ids = self._ensure_flat_list(
+        self.json_start_ids = self._ensure_list(
             self.model.encode('\nUser Request: '))
-        self.json_prompt_key_ids = self._ensure_flat_list(
+        self.json_prompt_key_ids = self._ensure_list(
             self.model.encode('\nJSON response: {"prompt": "'))
 
         self.min_function = np.log(0.45)
 
-    def _ensure_flat_list(self, data: Any) -> List[int]:
+    def _ensure_list(self, data: Any) -> List[int]:
         """Recursively flatten any nested list or numpy array to List[int]."""
         if hasattr(data, "tolist"):
             data = data.tolist()
@@ -83,7 +83,7 @@ class Model:
         flat: List[int] = []
         for item in data:
             if isinstance(item, list):
-                flat.extend(self._ensure_flat_list(item))
+                flat.extend(self._ensure_list(item))
             else:
                 flat.append(int(item))
         return flat
@@ -92,27 +92,23 @@ class Model:
         """Resolve a natural-language prompt to a function call dict."""
         ids = list(self.system_ids)
         ids.extend(self.json_start_ids)
-        ids.extend(self._ensure_flat_list(self.model.encode(user_prompt)))
+        ids.extend(self._ensure_list(self.model.encode(user_prompt)))
         ids.extend(self.json_prompt_key_ids)
         clean_user_prompt = (
             user_prompt.replace("\\", "\\\\").replace('"', '\\"'))
-        ids.extend(self._ensure_flat_list(self.model.encode(
+        ids.extend(self._ensure_list(self.model.encode(
             clean_user_prompt)))
-        ids.extend(self._ensure_flat_list(self.model.encode(
+        ids.extend(self._ensure_list(self.model.encode(
             '", "name": "')))
 
         functions = {v.name: v for v in self.parsing.functions}
-
-        ids.extend(self._ensure_flat_list(
-            self.model.encode('", "name": "')
-        ))
 
         selected_fn = self._select_function(
             user_prompt, self.parsing.functions, ids
         )
 
-        ids.extend(self._ensure_flat_list(self.model.encode(selected_fn)))
-        ids.extend(self._ensure_flat_list(
+        ids.extend(self._ensure_list(self.model.encode(selected_fn)))
+        ids.extend(self._ensure_list(
             self.model.encode('", "parameters": {')
         ))
 
@@ -124,7 +120,7 @@ class Model:
         except StopIteration:
             pass
 
-        ids.extend(self._ensure_flat_list(self.model.encode('}}')))
+        ids.extend(self._ensure_list(self.model.encode('}}')))
 
         full_text = self.model.decode(ids)
         json_str = full_text.split("JSON response:")[-1].strip()
@@ -207,7 +203,7 @@ class Model:
         scores: List[float] = []
         for choice in choices:
             temp_ids = list(current_ids)
-            target_tokens = self._ensure_flat_list(self.model.encode(choice))
+            target_tokens = self._ensure_list(self.model.encode(choice))
             log_prob_sum = 0.0
             for t_id in target_tokens:
                 logits = self.model.get_logits_from_input_ids(temp_ids)
@@ -234,18 +230,18 @@ class Model:
         for i, p_name in enumerate(fn_def.parameters.keys()):
             p_type = fn_def.parameters[p_name].get("type")
             param_ids.extend(
-                self._ensure_flat_list(self.model.encode(f'"{p_name}": '))
+                self._ensure_list(self.model.encode(f'"{p_name}": '))
             )
             if p_type == "string":
                 param_ids.extend(
-                    self._ensure_flat_list(self.model.encode('"'))
+                    self._ensure_list(self.model.encode('"'))
                 )
                 param_ids.extend(
                     self._generate_until_quote(current_ids + param_ids)
                 )
                 if not self.model.decode(param_ids).endswith('"'):
                     param_ids.extend(
-                        self._ensure_flat_list(self.model.encode('"'))
+                        self._ensure_list(self.model.encode('"'))
                     )
             else:
                 param_ids.extend(
@@ -253,7 +249,7 @@ class Model:
                 )
             if i < len(fn_def.parameters.keys()) - 1:
                 param_ids.extend(
-                    self._ensure_flat_list(self.model.encode(", "))
+                    self._ensure_list(self.model.encode(", "))
                 )
         return param_ids
 

@@ -209,3 +209,6 @@ custom_data/
 
 # Output
 data/output
+
+# Logs
+logs/

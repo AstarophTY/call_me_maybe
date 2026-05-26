@@ -19,6 +19,26 @@ def main(
         "data/output/function_calling_results.json", "-o", "--output"
     ),
 ) -> None:
+    """
+    Main entry point for the function calling CLI application.
+    Loads environment configuration, initializes logging, and prepares the \
+        application
+    for processing function definitions and test cases.
+
+    Args:
+        functions_definition (str): Path to the JSON file containing function
+            definitions. Defaults to "data/input/functions_definition.json".
+        input (str): Path to the JSON file containing function calling test
+            cases. Defaults to "data/input/function_calling_tests.json".
+        output (str): Path to the JSON file where results will be written.
+            Defaults to "data/output/function_calling_results.json".
+
+    Returns:
+        None
+
+    Raises:
+        Logs a warning if LOG_LEVEL environment variable is invalid.
+    """
     load_dotenv()
 
     valid_levels = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}

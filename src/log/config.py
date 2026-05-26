@@ -3,7 +3,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from .formatters import FILE_DATE, FILE_FORMAT, ColorFormatter
+from .formatters import FILE_DATE, FILE_FORMAT
+from .handlers import make_stream_handler
 
 
 def setup_logging(
@@ -14,7 +15,8 @@ def setup_logging(
 
     Two handlers are attached to the root logger:
 
-    * a console handler writing colorized output to ``stdout``;
+        * a console handler writing colorized output to ``stdout``;
+        * a console handler writing colorized output to ``stderr``;
     * a file handler writing plain text to
       ``<logs_dir>/YYYY-MM-DD_HH-MM-SS.log``.
 
@@ -28,8 +30,11 @@ def setup_logging(
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     log_file = log_folder / f"{timestamp}.log"
 
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setFormatter(ColorFormatter())
+    stdout_handler = make_stream_handler(sys.stdout, max_level=logging.INFO)
+    stderr_handler = make_stream_handler(
+        sys.stderr,
+        min_level=logging.WARNING,
+    )
 
     file_handler = logging.FileHandler(log_file, encoding="utf-8")
     file_handler.setFormatter(
@@ -38,7 +43,8 @@ def setup_logging(
 
     logging.basicConfig(
         level=level,
-        handlers=[console_handler, file_handler],
+        handlers=[stdout_handler, stderr_handler, file_handler],
+        force=True,
     )
 
     logging.getLogger(__name__).info("Logging initialized -> %s", log_file)

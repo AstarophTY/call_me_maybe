@@ -1,16 +1,20 @@
 [project]
 name = "call-me-maybe"
 version = "0.1.0"
-description = "Add your description here"
-readme = "README.md"
+description = "Call me maybe: Return the most probable function with arguments from a single prompt and a list of function definitions."
 requires-python = ">=3.10"
 dependencies = [
-    "accelerate>=1.12.0",
-    "flake8>=7.3.0",
-    "mypy>=1.19.1",
-    "numpy>=2.2.6",
-    "pydantic>=2.12.5",
-    "torch>=2.10.0",
-    "transformers>=5.2.0",
-    "types-tqdm>=4.67.3.20260303",
+    "torch>=2.0.0",
+    "transformers>=4.40.0",
+    "huggingface-hub>=0.20.0",
+    "typer>=0.24.0",
+    "mypy>=2.1.0",
+    "dotenv>=0.9.9",
 ]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["llm_sdk"]

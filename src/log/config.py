@@ -47,5 +47,5 @@ def setup_logging(
         force=True,
     )
 
-    logging.getLogger(__name__).info("Logging initialized -> %s", log_file)
+    logging.getLogger(__name__).info("Logging initialized: %s", log_file)
     return log_file

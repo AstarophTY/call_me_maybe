@@ -4,7 +4,6 @@ from dotenv import load_dotenv
 from os import getenv
 
 from ..log import setup_logging
-from ..parsing.config_loader import ConfigLoader
 
 app = typer.Typer()
 
@@ -56,10 +55,4 @@ def main(
         f"\t- functions_definition_file: {functions_definition_file}\n"
         f"\t- input_file: {input_file}\n"
         f"\t- output_file: {output_file}"
-    )
-
-    _ = ConfigLoader(
-        input_file=input_file,
-        output_file=output_file,
-        functions_definition_file=functions_definition_file
     )

@@ -1,6 +1,3 @@
-# ABOUTME: Logging formatters for colorized terminal and plain file output.
-# ABOUTME: ColorFormatter targets the console; FILE_FORMAT targets log files.
-
 import logging
 
 from . import colors
@@ -18,10 +15,13 @@ class ColorFormatter(logging.Formatter):
     """
 
     def format(self, record: logging.LogRecord) -> str:
-        """Render *record* as a single colorized line.
+        """Render record as a single colorized line.
 
-        Exception information, when present, is appended on a new line
-        without coloring so tracebacks stay readable.
+        Exception information, when present, is appended on a new
+        line without coloring so tracebacks remain readable.
+
+        :param record: The log record to format.
+        :returns: Formatted record string with ANSI color codes.
         """
         color = colors.LEVEL_COLORS.get(record.levelno, colors.WHITE)
         label = colors.LEVEL_LABELS.get(record.levelno, record.levelname)

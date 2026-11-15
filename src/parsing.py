@@ -23,8 +23,9 @@ class Parsing:
             for error in e.errors():
                 message = error['msg']
                 if message.startswith("Value error, "):
-                    message.replace("Value error, ", "", 1)
+                    message = message.replace("Value error, ", "", 1)
                 print(f"Error: {message}", file=stderr)
+            raise SystemExit(1) from e
 
         self.prompts = [prompt.prompt for prompt in values.prompts]
         self.functions = list(values.functions)

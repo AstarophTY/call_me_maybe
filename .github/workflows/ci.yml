@@ -1,0 +1,22 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: flake8
+        run: uvx flake8 src/*.py
+      - name: mypy
+        # torch/transformers are not installed in CI (several GB): imports
+        # are ignored and only the project files are type-checked.
+        run: >
+          uvx --with pydantic --with numpy mypy src/*.py
+          --warn-return-any --warn-unused-ignores --ignore-missing-imports
+          --disallow-untyped-defs --check-untyped-defs --follow-imports=silent
